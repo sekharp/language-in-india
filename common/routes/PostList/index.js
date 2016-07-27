@@ -9,9 +9,9 @@ export default function createRoutes (store) {
         './containers/PostList',
         './reducer'
       ], (require) => {
-        let PostPage = require('./containers/PostList').default
-        let postReducer = require('./reducer').default
-        injectAsyncReducer(store, 'posts', postReducer)
+        const PostPage = require('./containers/PostList').default
+        const normalizedPostReducer = require('./reducer').default
+        injectAsyncReducer(store, 'posts', normalizedPostReducer)
         cb(null, PostPage)
       })
     }

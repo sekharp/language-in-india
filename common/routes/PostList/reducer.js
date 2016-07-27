@@ -1,33 +1,66 @@
 import * as types from '../../constants'
-import update from 'react/lib/update'
-import Immutable, { List, Map } from 'immutable'
+import { combineReducers } from 'redux'
 
-const initialState = Map({
-  data: List(),
-  lastFetched: null,
-  isLoading: false,
-  error: null
-})
-
-export default function posts (state = initialState, action) {
+const ids = (state = [], action) => {
   switch (action.type) {
     case types.LOAD_POSTS_REQUEST:
-      return state.withMutations(posts => {
-        posts.set('isLoading', true)
-            .set('error', null)
-      })
-    case types.LOAD_POSTS_SUCCESS:
-      return state.withMutations(posts => {
-        posts.set('data', Immutable.fromJS(action.payload))
-            .set('lastFetched', action.meta.lastFetched)
-            .set('isLoading', false)
-      })
     case types.LOAD_POSTS_FAILURE:
-      return state.set('error', action.payload)
+      return state
+    case types.LOAD_POSTS_SUCCESS:
+      return action.payload.result
     default:
       return state
   }
 }
 
-// Example of a co-located selector
-export const selectPosts = state => state.posts.toJS()
+const byId = (state = {}, action) => {
+  switch (action.type) {
+    case types.LOAD_POSTS_REQUEST:
+    case types.LOAD_POSTS_FAILURE:
+      return state
+    case types.LOAD_POSTS_SUCCESS:
+      return { ...state, ...action.payload.entities.post }
+    default:
+      return state
+  }
+}
+
+const isFetching = (state = false, action) => {
+  switch (action.type) {
+    case types.LOAD_POSTS_REQUEST:
+      return true
+    case types.LOAD_POSTS_SUCCESS:
+    case types.LOAD_POSTS_FAILURE:
+      return false
+    default:
+      return state
+  }
+}
+
+const errorMessage = (state = null, action) => {
+  switch (action.type) {
+    case types.LOAD_POSTS_FAILURE:
+      return action.error.message
+    case types.LOAD_POSTS_SUCCESS:
+    case types.LOAD_POSTS_REQUEST:
+      return null
+    default:
+      return state
+  }
+}
+
+export const getPostBySlug = (state, slug) => state.posts.byId[slug]
+export const getPosts = (state) => {
+  return state.posts.ids.map(id => getPostBySlug(state, id))
+}
+export const getIsFetching = (state) => state.isFetching
+export const getErrorMessage = (state) => state.errorMessage
+
+const posts = combineReducers({
+  isFetching,
+  errorMessage,
+  ids,
+  byId
+})
+
+export default posts
