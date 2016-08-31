@@ -1,42 +1,40 @@
 import React, { PropTypes } from 'react'
 import { registerAsyncActions } from 'redux-taxi'
-import { loadPosts } from '../actions'
+import { loadRepos } from '../actions'
 import { connect } from 'react-redux'
 import PostListItem from '../components/PostListItem'
 import { StyleSheet, css } from 'aphrodite'
 import Helmet from 'react-helmet'
-import { selectPosts } from '../reducer'
-import GitHub from './GitHub'
+import { selectRepos } from '../reducer'
 
 const mapStateToProps = state => ({
-  posts: selectPosts(state)
+  repos: selectRepos(state)
 })
 
-class PostListPage extends React.Component {
+class GitHub extends React.Component {
   constructor(props, context) {
     super(props, context)
-    this.props.loadPosts()
+    this.props.loadRepos()
   }
 
   render () {
-    const { posts } = this.props
+    const { repos } = this.props
     return (
       <div className={css(styles.root)}>
         <Helmet title='Posts' />
-        {posts.isLoading &&
+        {repos.isLoading &&
           <div>
             <h2 className={css(styles.title)}>Loading....</h2>
           </div>}
-        {!posts.isLoading &&
-          posts.data.map((post, i) => <PostListItem key={post.id} post={post} />)}
-        <GitHub />
+        {!repos.isLoading &&
+          repos.data.map((post, i) => <PostListItem key={post.id} post={post} />)}
       </div>
     )
   }
 }
 
-PostListPage.PropTypes = {
-  posts: PropTypes.array.isRequired
+GitHub.PropTypes = {
+  repos: PropTypes.array.isRequired
 }
 
 const styles = StyleSheet.create({
@@ -50,4 +48,4 @@ const styles = StyleSheet.create({
   }
 })
 
-export default registerAsyncActions('LOAD_POSTS')(connect(mapStateToProps, {loadPosts})(PostListPage))
+export default registerAsyncActions('LOAD_REPOS')(connect(mapStateToProps, {loadRepos})(GitHub))

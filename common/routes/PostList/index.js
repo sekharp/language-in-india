@@ -7,6 +7,7 @@ export default function createRoutes (store) {
     getComponents (location, cb) {
       require.ensure([
         './containers/PostList',
+        './containers/GitHub',
         './reducer'
       ], (require) => {
         let PostPage = require('./containers/PostList').default

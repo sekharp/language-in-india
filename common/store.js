@@ -2,19 +2,38 @@ import { createStore, applyMiddleware, compose } from 'redux'
 import thunk from 'redux-thunk'
 import axios from 'axios'
 import createReducer from './createReducer'
+import {ReduxTaxiMiddleware, PromiseMiddleware} from 'redux-taxi';
 
-export function configureStore (initialState) {
-  let store = createStore(createReducer(), initialState, compose(
-    applyMiddleware(
-      thunk.withExtraArgument({ axios })
-    ),
+export function configureStore (initialState, instance = {}) {
+  let middleware
 
-    process.env.NODE_ENV === 'development' &&
-    typeof window === 'object' &&
-    typeof window.devToolsExtension !== 'undefined'
-      ? window.devToolsExtension()
-      : f => f
-  ))
+  if (instance.reduxTaxi) {
+    middleware = compose(
+      applyMiddleware(
+        ReduxTaxiMiddleware(instance.reduxTaxi),
+        PromiseMiddleware,
+        thunk.withExtraArgument({ axios })
+      ),
+      process.env.NODE_ENV === 'development' &&
+      typeof window === 'object' &&
+      typeof window.devToolsExtension !== 'undefined'
+        ? window.devToolsExtension()
+        : f => f
+      )
+  } else {
+    middleware = compose(
+      applyMiddleware(
+        PromiseMiddleware,
+        thunk.withExtraArgument({ axios })
+      ),
+        process.env.NODE_ENV === 'development' &&
+        typeof window === 'object' &&
+        typeof window.devToolsExtension !== 'undefined'
+          ? window.devToolsExtension()
+          : f => f
+      )
+  }
+  let store = createStore(createReducer(), initialState, middleware)
 
   store.asyncReducers = {}
 

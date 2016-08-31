@@ -9,10 +9,10 @@ import hpp from 'hpp'
 import throng from 'throng'
 
 import React from 'react'
-import ReactDOM from 'react-dom/server'
+import ReactDOMServer from 'react-dom/server'
 import { createMemoryHistory, RouterContext, match } from 'react-router'
 import { Provider } from 'react-redux'
-import { trigger } from 'redial'
+import {ReduxTaxi, ReduxTaxiProvider} from 'redux-taxi';
 import { StyleSheetServer } from 'aphrodite'
 import { fromJS } from 'immutable'
 import Helm from 'react-helmet' // because we are already using helmet
@@ -60,15 +60,15 @@ export const createServer = (config) => {
 
 
   app.get('*', (req, res) => {
+    const reduxTaxi = ReduxTaxi();
     const store = configureStore(fromJS({
       sourceRequest: {
         protocol: req.headers['x-forwarded-proto'] || req.protocol,
         host: req.headers.host
       }
-    }))
+    }), {reduxTaxi})
     const routes = createRoutes(store)
     const history = createMemoryHistory(req.originalUrl)
-    const { dispatch } = store
 
     match({ routes, history}, (err, redirectLocation, renderProps) => {
       if (err) {
@@ -80,36 +80,104 @@ export const createServer = (config) => {
         return res.status(404).send('Not found')
       }
 
-      const { components } = renderProps
+      if (renderProps) {
 
-      // Define locals to be provided to all lifecycle hooks:
-      const locals = {
-        path: renderProps.location.pathname,
-        query: renderProps.location.query,
-        params: renderProps.params,
+        // Your configureStore signature may be different, but here we are passing reduxTaxi as part of an object with a property name of `reduxTaxi`
+        // to signal to configureStore to include it when configuring the store for the server (as opposed to the client where reduxTaxi is not needed,
+        // and something else may be provided, e.g. browserHistory). This allows us to write configureStore in an "isomorphic" fashion, without having
+        // to explicitly signal that its running in server or client contexts.
+        // const store = configureStore(initialState, {reduxTaxi});
 
-        // Allow lifecycle hooks to dispatch Redux actions:
-        dispatch
-      }
-
-      trigger('fetch', components, locals)
-        .then(() => {
-          const initialState = store.getState()
-          const InitialView = (
+        const initialComponent = (
             <Provider store={store}>
-              <RouterContext {...renderProps} />
+                <ReduxTaxiProvider reduxTaxi={reduxTaxi}>
+                    <RouterContext {...renderProps} />
+                </ReduxTaxiProvider>
             </Provider>
-          )
+        );
 
-          // just call html = ReactDOM.renderToString(InitialView)
-          // to if you don't want Aphrodite. Also change renderFullPage
-          // accordingly
-          const data = StyleSheetServer.renderStatic(
-            () => ReactDOM.renderToString(InitialView)
-          )
-          const head = Helm.rewind()
-          res.status(200).send(`
-            <!DOCTYPE html>
+        // Render once to instantiate all components (at the given route)
+        // and collect any promises that may be registered.
+        let data = StyleSheetServer.renderStatic(
+          () => ReactDOMServer.renderToString(initialComponent)
+        )
+        const head = Helm.rewind()
+
+        const allPromises = reduxTaxi.getAllPromises();
+        if (allPromises.length) {
+            // If we have some promises, we need to delay server rendering
+            Promise
+                .all(allPromises)
+                .then(() => {
+                    data = StyleSheetServer.renderStatic(
+                      () => ReactDOMServer.renderToString(initialComponent)
+                    )
+                    const initialState = store.getState().toJS()
+
+                    res.status(200).send(`
+                      <!DOCTYPE html>
+                      <html lang="en">
+                        <head>
+                          <meta charSet="utf-8">
+                          <meta httpEquiv="X-UA-Compatible" content="IE=edge">
+                          ${head.title.toString()}
+                          <meta name="viewport" content="width=device-width, initial-scale=1">
+                          <link rel="shortcut icon" href="/favicon.ico">
+                          ${head.meta.toString()}
+                          ${head.link.toString()}
+                          <style>
+                            html {
+                              box-sizing: border-box
+                            }
+
+                            *,
+                            *::before,
+                            *::after {
+                              box-sizing: border-box
+                            }
+
+                            html {
+                              font-size: 100%;
+                              -ms-overflow-style: scrollbar;
+                              -webkit-tap-highlight-color: rgba(0,0,0,0);
+                              height: 100%;
+                            }
+
+                            body {
+                              font-size: 1rem;
+                              background-color: #fff;
+                              color: #555;
+                              -webkit-font-smoothing: antialiased;
+                              -moz-osx-font-smoothing: grayscale;
+                              font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+                            }
+
+                            h1,h2,h3,h4,h5,h6 {
+                              margin: 0;
+                              padding: 0;
+                            }
+                          </style>
+                          <style data-aphrodite>${data.css.content}</style>
+                        </head>
+                        <body>
+                          <div id="root">${data.html}</div>
+                          <script>window.renderedClassNames = ${JSON.stringify(data.css.renderedClassNames)};</script>
+                          <script>window.INITIAL_STATE = ${JSON.stringify(initialState)};</script>
+                          <script src="${ __PROD__ ? assets.vendor.js : '/vendor.js' }"></script>
+                          <script async src="${ __PROD__ ? assets.main.js : '/main.js' }" ></script>
+                        </body>
+                      </html>
+                    `)
+                })
+                .catch((e) => {
+                    console.log(e)
+                    res.send(JSON.stringify(e))
+                    // some error happened, respond with error page
+                })
+        } else {
+            const initialState = store.getState().toJS()
+            // otherwise, we can just respond with our rendered app
+            res.send(`<!DOCTYPE html>
             <html lang="en">
               <head>
                 <meta charSet="utf-8">
@@ -162,7 +230,11 @@ export const createServer = (config) => {
               </body>
             </html>
           `)
-        }).catch(e => console.log(e))
+        }
+    }
+
+
+
     })
   })
 
