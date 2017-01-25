@@ -5,19 +5,19 @@ import { StyleSheet, css } from 'aphrodite'
 
 const App = ({ children }) => (
   <div className={css(styles.root)}>
-    <Helmet title='React Production Starter' titleTemplate='%s - React Production Starter' />
-    <h1 className={css(styles.title)}>React Production Starter</h1>
+    <Helmet title='Indic Languages Visualized' titleTemplate='%s - React Production Starter' />
+    <h1 className={css(styles.title)}>Indic Languages Visualized</h1>
     <Nav />
     {children}
     <footer className={css(styles.footer)}>
-      Copyright © 2016 <a className={css(styles.footerLink)} href='http://twitter.com/jaredpalmer' target='_blank'>Jared Palmer</a>
+      Copyright © 2016 <a className={css(styles.footerLink)} href='http://linkedin.com/in/sekharp' target='_blank'>Sekhar Paladugu</a>
     </footer>
   </div>
 )
 
 const styles = StyleSheet.create({
   root: {
-    maxWidth: 700,
+    maxWidth: 800,
     color: '#000',
     margin: '2rem auto',
     padding: '0 1rem'
